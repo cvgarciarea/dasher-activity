@@ -11,16 +11,24 @@ FONT = ('Monospace', cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
 KEYS1 = [str(x) for x in range(1, 10)] + ['0', '←']
 KEYS2 = ['⇄', 'q', 'w', 'e', 'r', 't', 'y', 'i', 'o', 'p']
 KEYS3 = ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l' ,'ñ', '{', '}']
-KEYS4 = ['⇧', '<', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '-', '⇧']
+KEYS4 = ['⇧', '<', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '-']
 KEYS5 = ['Ctrl', 'SPACE', 'Alt Gr', 'Ctrl', '←', '↓', '↑', '→']
 INTRO_KEY = '↲'
 COLORS = {'background': (0.5, 0.5, 0.5),
           'key-button': (0.7, 0.7, 0.7),
-          'key-letter': (1, 1, 1)}
+          'key-letter': (1, 1, 1),
+          'key-selected': (0.6, 0.6, 0.6)}
 
 
-class Key():
-    def __init__(self, key):
+class Key(GObject.GObject):
+
+    __gsignals__ = {
+        'selected': (GObject.SIGNAL_RUN_FIRST, None, []),
+        'unselected': (GObject.SIGNAL_RUN_FIRST, None, []),
+        }
+
+    def __init__(self, key, context):
+        GObject.GObject.__init__(self)
 
         self.width = 0
         self.height = 0
@@ -29,15 +37,13 @@ class Key():
         self.key = key
         self.x = 0
         self.y = 0
-        self.context = None
-        self.mayus = 'StartOnly'
-        self.font_size = 20
-
-    def set_context(self, context):
         self.context = context
+        self.mayus = 'StartOnly'
+        self.font_size = 0
+        self.selected = False
+        self.color = COLORS['key-button']
 
     def render(self):
-        print self.key
         if self.key in KEYS1:
             _list = KEYS1
             n = 1
@@ -58,13 +64,17 @@ class Key():
             _list = KEYS5
             n = 5
 
+        else:  # Intro key
+            self.render_as_intro_key()
+            return
+
         self.width = (self._size[0]) / float(len(_list)) * self._increment
         self.height = self._size[1] / 6.0 * self._increment
         self.x = self.width * _list.index(self.key) + self._pos[0]
         self.y = self.height * n + self._center[1] - self._mouse_position[1] * self._increment
         self.font_size = self._size[0] / len(_list)
 
-        self.context.set_source_rgba(*COLORS['key-button'])
+        self.context.set_source_rgba(*self.color)
         self.context.rectangle(self.x, self.y, self.width, self.height)
         self.context.fill()
 
@@ -75,6 +85,40 @@ class Key():
         self.context.set_source_rgba(*COLORS['key-letter'])
         self.context.move_to(x, y)
         self.context.show_text(self.key.upper() if self.mayus else self.key.lower())
+
+        self.check_selected()
+
+    def render_as_intro_key(self):
+        self.width = self._size[0] / float(len(KEYS1) - 1) * self._increment
+        self.height = self._size[1] / 5.0 * self._increment
+        self.x = self.width * KEYS1.index('←') + self._pos[0]
+        self.y = self.height * 2 + self._center[1] - self._mouse_position[1] * self._increment
+
+        self.context.set_source_rgba(*self.color)
+        self.context.rectangle(self.x, self.y, self.width, self.height)
+        self.context.fill()
+
+        x = self.x + (self.width / 2.0) - (self.context.text_extents(self.key)[2] / 2.0)
+        y = self.y + (self.height / 2.0) + (self.context.text_extents(self.key)[3] / 2.0)
+        self.context.set_source_rgba(*COLORS['key-letter'])
+        self.context.move_to(x, y)
+        self.context.show_text(self.key)
+
+    def check_selected(self):
+        within = self._mouse_position[0] > self.x and \
+            self._mouse_position[0] < self.x + self.width and \
+            self._mouse_position[1] > self.y and \
+            self._mouse_position[1] < self.y + self.height
+
+        if within and not self.selected:
+            self.selected = True
+            self.color = COLORS['key-selected']
+            self.emit('selected')
+
+        elif not within and self.selected:
+            self.selected = False
+            self.color = COLORS['key-button']
+            self.emit('unselected')
 
 
 class KeyBoard(Gtk.DrawingArea):
@@ -87,7 +131,7 @@ class KeyBoard(Gtk.DrawingArea):
         self.mouse_position = (0, 0)
         self.keyboard_size = (0, 0)
         self.size = (0, 0)
-        self.keys = [Key(x) for x in (KEYS1 + KEYS2 + KEYS3 + KEYS4 + KEYS5)]
+        self.keys = []
         self.mayus = 'StartOnly'  # 'None', 'StartOnly', 'ForEver'
         self.increment = INCREMENTO
         self.x = 0
@@ -109,6 +153,9 @@ class KeyBoard(Gtk.DrawingArea):
         self.size = (atn.width, atn.height)
         self.keyboard_size = (atn.width * self.increment, atn.height * self.increment)
         self.center = (atn.width / 2.0, atn.height / 2.0)
+
+        if not self.keys:
+            self.keys = [Key(x, self.context) for x in (KEYS1 + KEYS2 + KEYS3 + KEYS4 + [INTRO_KEY])]
 
         self.render()
 
@@ -148,7 +195,12 @@ class KeyBoard(Gtk.DrawingArea):
             key._increment = self.increment
             key._center = self.center
             key._mouse_position = self.mouse_position
+
+            key.connect('selected', self.selected_key)
             key.render()
+
+    def selected_key(self, key):
+        pass
 
 
 class Window(Gtk.Window):
