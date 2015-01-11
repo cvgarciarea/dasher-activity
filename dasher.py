@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import math
-import cairo
 import random
 
 from gi.repository import Gtk
@@ -77,9 +75,8 @@ class LetterBox(GObject.GObject):
         self.context.fill()
 
     def render_text(self):
-        if self.height > 15:
-            self.context.move_to(self.x + 10, self.y + self.height / 2.0)
-            self.context.show_text(self.letter)
+        self.context.move_to(self.x + 10, self.y + self.height / 2.0)
+        self.context.show_text(self.letter)
 
     def check_selected(self):
         if self.x < self._center[0]:
@@ -124,15 +121,19 @@ class InitBox(GObject.GObject):
             self.x = x + self.inc
             self.y = y
 
-    def render(self, x, y):
-        if str(x).startswith('0.'):
+    def render(self):
+        x = (self._center[0] - self._mouse_pos[0]) / 10.0
+        y = (self._center[1] - self._mouse_pos[1]) / 10.0
+        if str(abs(x)).startswith('0'):
             x = 0
-        if str(y).startswith('0.'):
+        if str(abs(y)).startswith('0'):
             y = 0
 
         self.x += x
         self.y += y
 
+        # Preventing the main box to move more than
+        # the central horizontal line.
         if self.y + self.height < self._center[1]:
             self.y = self._center[1] - self.height
         elif self.y > self._center[1]:
@@ -241,7 +242,6 @@ class Area(Gtk.DrawingArea):
         self.height = 0
         self.mouse_pos = (0, 0)
         self.center = (0, 0)
-        self.distance = 0
         self.context = None
         self.update_loop = None
         self.key_loop = None
@@ -339,7 +339,6 @@ class Area(Gtk.DrawingArea):
         min_x = self.width / 4.0
         x = self.mouse_pos[0]
         y = self.mouse_pos[1]
-        self.distance = self.get_distance(self.center, (x, y))
 
         if x > self.center[0]:
             x = x if x < max_x else max_x
@@ -353,15 +352,14 @@ class Area(Gtk.DrawingArea):
         GObject.idle_add(self.queue_draw)
 
     def render_boxes(self):
-        x = (self.center[0] - self.mouse_pos[0]) / 10.0
-        y = (self.center[1] - self.mouse_pos[1]) / 10.0
         self.init_box.context = self.context
 
         if self.moving:
             self.init_box._width = self.width
             self.init_box._height = self.height
+            self.init_box._mouse_pos = self.mouse_pos
             self.init_box.set_center(*self.center)
-            self.init_box.render(x, y)
+            self.init_box.render()
         else:
             self.init_box.paint()
 
@@ -376,9 +374,6 @@ class Area(Gtk.DrawingArea):
                 box.render()
             else:
                 box.paint()
-
-    def get_distance(self, (x1, y1), (x2, y2)):
-        return math.sqrt(abs(x1 - x2) ** 2 + abs(y1 - y2) ** 2)
 
 
 class Window(Gtk.Window):
