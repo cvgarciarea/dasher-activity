@@ -24,6 +24,22 @@ MAYUS_KEYS = {'↾': [0, 'Never'],
               '⇧': [1, 'StartOnly'],
               '⇈': [2, 'Forever']}
 
+SPECIALS_SHIFT = {'<': '>',
+                  '{': '[',
+                  '}': ']',
+                  ',': ';',
+                  '.': ':',
+                  '-': '_',
+                  '1': '!',
+                  '2': '@',
+                  '3': '#',
+                  '4': '$',
+                  '5': '%',
+                  '6': '^',
+                  '7': '&',
+                  '8': '*',
+                  '9': '(',
+                  '0': ')'}
 
 
 class Key(GObject.GObject):
@@ -79,35 +95,58 @@ class Key(GObject.GObject):
             self.x = self._pos[0]
 
         self.y = self.height * n + self._center[1] - self._mouse_position[1] * self._increment
-        self.font_size = self._size[0] / len(_list)
+        self.font_size = self.height / 6 * 5.0
 
         self.context.set_source_rgba(*self.color)
         self.context.rectangle(self.x, self.y, self.width, self.height)
         self.context.fill()
 
+        self.render_label()
+        self.check_selected()
+
+    def render_label(self):
+        if self.real_key == 'SPACE':
+            return
+
+        shift = False
+
+        if self.mayus == 'Forever':
+            shift = True
+
+        elif self.mayus == 'StartOnly':
+            shift = self._text.endswith('\n') or self._text.strip().endswith('.') or not self._text
+            shift = shift and not self.real_key in SPECIALS_SHIFT.keys()
+
+        elif self.mayus == 'Never':
+            shift = False
+
+        if shift:
+            if not self.key in SPECIALS_SHIFT.keys():
+                self.key = self.key.upper()
+            else:
+                self.key = SPECIALS_SHIFT[self.key]
+
+        else:
+            self.key = self.real_key
+
         self.context.set_font_size(self.font_size)
         self.context.select_font_face(*FONT)
-        x = self.x + (self.width / 2.0) - (self.context.text_extents(self.key)[2] / 2.0)
-        y = self.y + (self.height / 2.0) + (self.context.text_extents(self.key)[3] / 2.0)
+        x = self.x + (self.width / 2.0) - (self.context.text_extents(self.key)[3] / 2.0)
+        y = self.y + (self.height / 2.0) + (self.context.text_extents(self.key)[4] / 2.0)
+        if self.real_key == '-':
+            x -= self.context.text_extents(self.key)[3] * 3.0
+
+        elif self.key == '.':
+            x -= self.context.text_extents(self.key)[3] * 1.5
+            y += (self.context.text_extents(self.key)[4] / 4.0)
+
+        elif self.key == ',':
+            x -= self.context.text_extents(self.key)[3] / 1.5
+
         self.context.set_source_rgba(*COLORS['key-letter'])
         self.context.move_to(x, y)
 
-        if self.real_key != 'SPACE':
-            if self.mayus == 'Forever':
-                self.key = self.key.upper()
-
-            elif self.mayus == 'StartOnly':
-                if self._text.endswith('\n') or self._text.strip().endswith('.') or not self._text:
-                    self.key = self.key.upper()
-                else:
-                    self.key = self.key.lower()
-
-            elif self.mayus == 'Never':
-                self.key = self.key.lower()
-
-            self.context.show_text(self.key)
-
-        self.check_selected()
+        self.context.show_text(self.key)
 
     def render_as_intro_key(self):
         self.font_size = self._size[0] / len(KEYS1)
@@ -168,7 +207,6 @@ class KeyBoard(Gtk.DrawingArea):
         self.text = ''
         self.selected_key = None
 
-        # FIXME: agregar incrementar tamaño al hacer scroll up, lo mismo para disminuir
         self.set_size_request(640, 480)
         self.set_events(Gdk.EventMask.POINTER_MOTION_MASK |
                         Gdk.EventMask.BUTTON_PRESS_MASK |
@@ -203,7 +241,6 @@ class KeyBoard(Gtk.DrawingArea):
         GObject.idle_add(self.queue_draw)
 
     def __button_press_event_cb(self, widget, event):
-        # FIXME: button1: add key to text, button3: stop moviment
         if event.button == 1:
             if self.selected_key:
                 text = self.selected_key.key
@@ -238,17 +275,24 @@ class KeyBoard(Gtk.DrawingArea):
         GObject.idle_add(self.queue_draw)
 
     def next_mayus(self, key):
-        n, mayus = MAYUS_KEYS[key.key]
-        if n == 2:
-            n = 0
-        else:
-            n += 1
+        num, mayus = MAYUS_KEYS[key.key]
+        d = {0: 1, 1: 2, 2: 0}
+        num = d[num]
 
-        for s, l in MAYUS_KEYS.items():
-            if n == l[0]:
-                key.key = s
-                KEYS4[0] = s
-                self.mayus = l[1]
+        if num == 0:
+            self.mayus = 'Never'
+            simbol = '↾'
+        elif num == 1:
+            self.mayus = 'StartOnly'
+            simbol = '⇧'
+        elif num == 2:
+            self.mayus = 'Forever'
+            simbol = '⇈'
+
+        key.key = simbol
+        KEYS4[0] = simbol
+
+        GObject.idle_add(self.queue_draw)
 
     def calculate_pos(self):
         self.x = self.center[0] - self.mouse_position[0] * self.increment
