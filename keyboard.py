@@ -351,8 +351,8 @@ class DasherActivity(activity.Activity):
         vbox = Gtk.VBox()
         scrolled = Gtk.ScrolledWindow()
 
-        scrolled.set_size_request(-1, 50)
-        self.view.modify_font(Pango.FontDescription('20'))
+        scrolled.set_size_request(-1, 100)
+        self.view.modify_font(Pango.FontDescription('25'))
 
         self.connect('destroy', Gtk.main_quit)
         self.area.connect('text-changed', self.text_changed)
