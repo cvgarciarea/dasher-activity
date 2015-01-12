@@ -101,7 +101,8 @@ class Key(GObject.GObject):
         else:
             self.x = self._pos[0]
 
-        self.y = self.height * n + self._center[1] - self._mouse_position[1] * self._increment
+        self.y = self.height * n + \
+            self._center[1] - self._mouse_position[1] * self._increment
         self.font_size = self.height / 6 * 5.0
 
         self.context.set_source_rgba(*self.color)
@@ -121,14 +122,15 @@ class Key(GObject.GObject):
             shift = True
 
         elif self.mayus == 'StartOnly':
-            shift = self._text.endswith('\n') or self._text.strip().endswith('.') or not self._text
-            shift = shift and not self.real_key in SPECIALS_SHIFT.keys()
+            shift = self._text.endswith('\n') or \
+                self._text.strip().endswith('.') or not self._text
+            shift = shift and self.real_key not in SPECIALS_SHIFT.keys()
 
         elif self.mayus == 'Never':
             shift = False
 
         if shift:
-            if not self.key in SPECIALS_SHIFT.keys():
+            if self.key not in SPECIALS_SHIFT.keys():
                 self.key = self.key.upper()
             else:
                 self.key = SPECIALS_SHIFT[self.key]
@@ -138,8 +140,10 @@ class Key(GObject.GObject):
 
         self.context.set_font_size(self.font_size)
         self.context.select_font_face(*FONT)
-        x = self.x + (self.width / 2.0) - (self.context.text_extents(self.key)[3] / 2.0)
-        y = self.y + (self.height / 2.0) + (self.context.text_extents(self.key)[4] / 2.0)
+        x = self.x + (
+            self.width / 2.0) - (self.context.text_extents(self.key)[3] / 2.0)
+        y = self.y + (
+            self.height / 2.0) + (self.context.text_extents(self.key)[4] / 2.0)
         if self.real_key == '-':
             x -= self.context.text_extents(self.key)[3] * 3.0
 
@@ -160,15 +164,18 @@ class Key(GObject.GObject):
         self.width = self._size[0] / float(len(KEYS1) - 1) * self._increment
         self.height = self._size[1] / 5.0 * self._increment
         self.x = self.width * KEYS1.index('←') + self._pos[0] + 20
-        self.y = self.height * 2 + self._center[1] - self._mouse_position[1] * self._increment
+        self.y = self.height * 2 + self._center[1] - \
+            self._mouse_position[1] * self._increment
 
         self.context.set_source_rgba(*self.color)
         self.context.rectangle(self.x, self.y, self.width, self.height)
         self.context.fill()
 
         self.context.set_font_size(self.font_size)
-        x = self.x + (self.width / 2.0) - (self.context.text_extents(self.key)[2] / 2.0)
-        y = self.y + (self.height / 2.0) + (self.context.text_extents(self.key)[3] / 2.0)
+        x = self.x + (
+            self.width / 2.0) - (self.context.text_extents(self.key)[2] / 2.0)
+        y = self.y + (
+            self.height / 2.0) + (self.context.text_extents(self.key)[3] / 2.0)
         self.context.set_source_rgba(*COLORS['key-letter'])
         self.context.move_to(x, y)
         self.context.show_text(self.key)
@@ -230,7 +237,8 @@ class KeyBoard(Gtk.DrawingArea):
 
         self.context = context
         self.size = (atn.width, atn.height)
-        self.keyboard_size = (atn.width * self.increment, atn.height * self.increment)
+        self.keyboard_size = (
+            atn.width * self.increment, atn.height * self.increment)
         self.center = (atn.width / 2.0, atn.height / 2.0)
 
         if not self.keys:
@@ -376,7 +384,8 @@ class DasherActivity(activity.Activity):
                 _end, _start = _buffer.get_selection_bounds()
                 offset = _end.get_offset()
 
-                text = _buffer.get_text(start, _end, 0) + _buffer.get_text(_start, end, 0)
+                text = _buffer.get_text(
+                    start, _end, 0) + _buffer.get_text(_start, end, 0)
                 _buffer.set_text(text)
                 _buffer.place_cursor(_buffer.get_iter_at_offset(offset))
 
