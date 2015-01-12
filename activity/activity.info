@@ -1,0 +1,6 @@
+[Activity]
+name = Dasher
+activity_version = 1
+bundle_id = org.sugarlabs.Dasher
+icon = icon
+exec = sugar-activity keyboard.DasherActivity 

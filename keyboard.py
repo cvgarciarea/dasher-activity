@@ -4,7 +4,14 @@
 import cairo
 from gi.repository import Gtk
 from gi.repository import Gdk
+from gi.repository import Pango
 from gi.repository import GObject
+
+from sugar3.activity import activity
+from sugar3.graphics.toolbutton import ToolButton
+from sugar3.graphics.toolbarbox import ToolbarBox
+from sugar3.activity.widgets import _create_activity_icon as ActivityIcon
+
 
 FONT = ('Monospace', cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
 KEYS1 = [str(x) for x in range(1, 10)] + ['0', '←']
@@ -83,7 +90,7 @@ class Key(GObject.GObject):
         elif self.real_key in KEYS5:
             _list = KEYS5
             n = 5
-        else:  # Intro key
+        elif self.real_key == INTRO_KEY:
             self.render_as_intro_key()
             return
 
@@ -149,7 +156,7 @@ class Key(GObject.GObject):
         self.context.show_text(self.key)
 
     def render_as_intro_key(self):
-        self.font_size = self._size[0] / len(KEYS1)
+        self.font_size = self._size[0] / len(KEYS1) * self._increment
         self.width = self._size[0] / float(len(KEYS1) - 1) * self._increment
         self.height = self._size[1] / 5.0 * self._increment
         self.x = self.width * KEYS1.index('←') + self._pos[0] + 20
@@ -201,7 +208,7 @@ class KeyBoard(Gtk.DrawingArea):
         self.size = (0, 0)
         self.keys = []
         self.mayus = 'StartOnly'  # 'Never', 'StartOnly', 'Forever'
-        self.increment = 1
+        self.increment = 2
         self.x = 0
         self.y = 0
         self.text = ''
@@ -210,11 +217,12 @@ class KeyBoard(Gtk.DrawingArea):
         self.set_size_request(640, 480)
         self.set_events(Gdk.EventMask.POINTER_MOTION_MASK |
                         Gdk.EventMask.BUTTON_PRESS_MASK |
+                        Gdk.EventMask.BUTTON_RELEASE_MASK |
                         Gdk.EventMask.SCROLL_MASK)
 
         self.connect('draw', self.__draw_cb)
         self.connect('motion-notify-event', self.__motion_notify_event)
-        self.connect('button-press-event', self.__button_press_event_cb)
+        self.connect('button-release-event', self.__button_release_event_cb)
         self.connect('scroll-event', self.__scroll_event)
 
     def __draw_cb(self, widget, context):
@@ -240,7 +248,7 @@ class KeyBoard(Gtk.DrawingArea):
         self.render()
         GObject.idle_add(self.queue_draw)
 
-    def __button_press_event_cb(self, widget, event):
+    def __button_release_event_cb(self, widget, event):
         if event.button == 1:
             if self.selected_key:
                 text = self.selected_key.key
@@ -256,11 +264,9 @@ class KeyBoard(Gtk.DrawingArea):
                 elif text == DEL_KEY:
                     if len(self.text):
                         self.text = self.text[:-1]
-                        self.emit('text-changed', self.text)
-                    return
 
                 self.text += text
-                self.emit('text-changed', self.text)
+                self.emit('text-changed', text)
 
     def __scroll_event(self, widget, event):
         if event.direction == Gdk.ScrollDirection.UP:
@@ -334,27 +340,99 @@ class KeyBoard(Gtk.DrawingArea):
             self.selected_key = None
 
 
-class Window(Gtk.Window):
+class DasherActivity(activity.Activity):
 
-    def __init__(self):
-        Gtk.Window.__init__(self)
+    def __init__(self, handle):
+        activity.Activity.__init__(self, handle)
 
-        self.entry = Gtk.Entry()
+        self.clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
+        self.view = Gtk.TextView()
         self.area = KeyBoard()
         vbox = Gtk.VBox()
+        scrolled = Gtk.ScrolledWindow()
+
+        scrolled.set_size_request(-1, 50)
+        self.view.modify_font(Pango.FontDescription('20'))
 
         self.connect('destroy', Gtk.main_quit)
         self.area.connect('text-changed', self.text_changed)
 
-        vbox.pack_start(self.entry, False, False, 0)
+        self.make_toolbar()
+
+        scrolled.add(self.view)
+        vbox.pack_start(scrolled, False, False, 0)
         vbox.pack_start(self.area, True, True, 0)
-        self.add(vbox)
+        self.set_canvas(vbox)
         self.show_all()
 
     def text_changed(self, widget, text):
-        self.entry.set_text(text)
+        _buffer = self.view.get_buffer()
+        if text != DEL_KEY:
+            _buffer.insert_at_cursor(text)
 
+        else:
+            if _buffer.get_selection_bounds():
+                start, end = _buffer.get_bounds()
+                _end, _start = _buffer.get_selection_bounds()
+                offset = _end.get_offset()
 
-if __name__ == '__main__':
-    Window()
-    Gtk.main()
+                text = _buffer.get_text(start, _end, 0) + _buffer.get_text(_start, end, 0)
+                _buffer.set_text(text)
+                _buffer.place_cursor(_buffer.get_iter_at_offset(offset))
+
+            else:
+                _end = _buffer.get_iter_at_mark(_buffer.get_selection_bound())
+                _buffer.backspace(_end, True, True)
+
+    def copy_text(self, widget=None):
+        _buffer = self.view.get_buffer()
+        start, end = _buffer.get_bounds()
+        text = _buffer.get_text(start, end, 0)
+        self.clipboard.set_text(text, -1)
+
+    def remove_text(self, widget=None):
+        self.view.get_buffer().set_text('')
+
+    def cut_text(self, text):
+        self.copy_text()
+        self.remove_text()
+
+    def make_toolbar(self):
+        def make_separator(expand=False, size=0):
+            separator = Gtk.SeparatorToolItem()
+            separator.set_size_request(size, -1)
+            if expand:
+                separator.set_expand(True)
+
+            if expand or size:
+                separator.props.draw = False
+
+            return separator
+
+        toolbar_box = ToolbarBox()
+        toolbar = toolbar_box.toolbar
+        activity_button = ToolButton()
+        button_copy = ToolButton(Gtk.STOCK_COPY)
+        button_cut = ToolButton('cut')
+        button_remove = ToolButton(Gtk.STOCK_REMOVE)
+        stop_button = ToolButton('activity-stop')
+
+        activity_button.set_icon_widget(ActivityIcon(None))
+        button_copy.set_tooltip('Copy the text.')
+        button_cut.set_tooltip('Cut the text.')
+        button_remove.set_tooltip('Remove all the text.')
+        stop_button.connect('clicked', lambda w: self.close())
+        stop_button.props.accelerator = '<Ctrl>Q'
+
+        button_copy.connect('clicked', self.copy_text)
+        button_cut.connect('clicked', self.cut_text)
+        button_remove.connect('clicked', self.remove_text)
+
+        toolbar.insert(activity_button, -1)
+        toolbar.insert(make_separator(size=30), -1)
+        toolbar.insert(button_copy, -1)
+        toolbar.insert(button_cut, -1)
+        toolbar.insert(button_remove, -1)
+        toolbar.insert(make_separator(expand=True), -1)
+        toolbar.insert(stop_button, -1)
+        self.set_toolbar_box(toolbar_box)
