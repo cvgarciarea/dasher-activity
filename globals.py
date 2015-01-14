@@ -2,6 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import cairo
+import json
+
+from gi.repository import Gdk
 
 
 FONT = ('Monospace', cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
@@ -154,7 +157,8 @@ class KEYS3(KeysDict):
         self.uppers = ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', '[', ']']
 
         if 'latam' in LAYOUT:
-            self['ñ'] = 'Ñ'
+            self.lowers.insert(-2, 'ñ')
+            self.uppers.insert(-2, 'Ñ')
 
 
 class KEYS4(KeysDict):
@@ -218,9 +222,13 @@ def get_mayus_key(mayus, text, key):
     return _key
 
 
-class MayusKey():
-    def __init__(self):
-        self.never = '↾'
-        self.start_only = '⇧'
-        self.forever = '⇈'
-        self.key = self.start_only
+def gdk_to_cairo(color):
+    return (color.red / 65535.0, color.green / 65535.0, color.blue / 65535.0)
+
+
+def cairo_to_gdk(color):
+    return Gdk.Color(65535 * color[0], 65535 * color[1], 65535 * color[2])
+
+
+def get_color(color):
+    return tuple(eval(eval(json.dumps(color))))
