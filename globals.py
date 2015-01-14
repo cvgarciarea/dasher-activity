@@ -85,14 +85,17 @@ class KeysDict(object):
             return self.lowers + _object.lowers, self.uppers + _object.uppers
 
         else:
-            raise TypeError("unsupported operand type(s) for +: %s and %s" % (type(self), type(_object)))
+            raise TypeError("unsupported operand type(s) for +: %s and %s" % (
+                type(self), type(_object)))
 
     def __mul__(self, _object):
         if type(_object) == int:
             return self.lowers * _object, self.uppers * _object
 
         else:
-            raise TypeError("unsupported operand type(s) for *: 'KEYS1' and '%s'" % str(type(_object)))
+            raise TypeError(
+                "unsupported operand type(s) for *: 'KEYS1' and '%s'" % str(
+                    type(_object)))
 
     def __len__(self):
         return len(self.lowers)
@@ -129,7 +132,8 @@ class KEYS1(KeysDict):
         KeysDict.__init__(self)
 
         self.lowers = [str(x) for x in range(1, 10)] + ['0', DEL_KEY]
-        self.uppers = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', DEL_KEY]
+        self.uppers = [
+            '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', DEL_KEY]
 
 
 class KEYS2(KeysDict):
@@ -158,8 +162,10 @@ class KEYS4(KeysDict):
     def __init__(self):
         KeysDict.__init__(self)
 
-        self.lowers = [MAYUS_KEY, '<', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '-']
-        self.uppers = [MAYUS_KEY, '>', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', ';', ':', '_']
+        self.lowers = [
+            MAYUS_KEY, '<', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '-']
+        self.uppers = [
+            MAYUS_KEY, '>', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', ';', ':', '_']
 
 
 class KEYS5(KeysDict):
@@ -205,7 +211,8 @@ def get_mayus_key(mayus, text, key):
         shift = False
 
     elif mayus == 'StartOnly':
-        shift = key.lower_key not in KEYS1() and (text.endswith('\n') or text.strip().endswith('.') or not text)
+        shift = key.lower_key not in KEYS1() and (
+            text.endswith('\n') or text.strip().endswith('.') or not text)
 
     _key = key.mayus_key if shift else key.lower_key
     return _key
@@ -217,4 +224,3 @@ class MayusKey():
         self.start_only = '⇧'
         self.forever = '⇈'
         self.key = self.start_only
-

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import cairo
 import globals as G
 
 from gi.repository import Gtk
@@ -13,7 +12,6 @@ from sugar3.activity import activity
 from sugar3.graphics.toolbutton import ToolButton
 from sugar3.graphics.toolbarbox import ToolbarBox
 from sugar3.activity.widgets import _create_activity_icon as ActivityIcon
-
 
 
 class Key(GObject.GObject):
@@ -90,7 +88,8 @@ class Key(GObject.GObject):
 
     def render_as_intro_key(self):
         self.font_size = self._size[0] / len(G.KEYS1()) * self._increment
-        self.width = self._size[0] / float(len(G.KEYS1()) - 1) * self._increment
+        self.width = \
+            self._size[0] / float(len(G.KEYS1()) - 1) * self._increment
         self.height = self._size[1] / 5.0 * self._increment
         self.x = self.width * G.KEYS1().index(G.DEL_KEY) + self._pos[0] + 20
         self.y = self.height * 2 + self._center[1] - \
@@ -333,10 +332,12 @@ class DasherActivity(activity.Activity):
                 text = self.buffer.get_text(
                     start, _end, 0) + self.buffer.get_text(_start, end, 0)
                 self.buffer.set_text(text)
-                self.buffer.place_cursor(self.buffer.get_iter_at_offset(offset))
+                self.buffer.place_cursor(
+                    self.buffer.get_iter_at_offset(offset))
 
             else:
-                _end = self.buffer.get_iter_at_mark(self.buffer.get_selection_bound())
+                _end = self.buffer.get_iter_at_mark(
+                    self.buffer.get_selection_bound())
                 self.buffer.backspace(_end, True, True)
 
     def copy_text(self, widget=None):
