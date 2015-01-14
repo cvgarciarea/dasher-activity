@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import cairo
+import globals as G
+
 from gi.repository import Gtk
 from gi.repository import Gdk
 from gi.repository import Pango
@@ -13,41 +15,6 @@ from sugar3.graphics.toolbarbox import ToolbarBox
 from sugar3.activity.widgets import _create_activity_icon as ActivityIcon
 
 
-FONT = ('Monospace', cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
-KEYS1 = [str(x) for x in range(1, 10)] + ['0', '←']
-KEYS2 = ['⇄', 'q', 'w', 'e', 'r', 't', 'y', 'i', 'o', 'p']
-KEYS3 = ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', '{', '}']
-KEYS4 = ['⇧', '<', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '-']
-KEYS5 = ['SPACE']
-INTRO_KEY = '↲'
-DEL_KEY = '←'
-TAB_KEY = '⇄'
-COLORS = {'background': (0.5, 0.5, 0.5),
-          'key-button': (0.7, 0.7, 0.7),
-          'key-letter': (1, 1, 1),
-          'key-selected': (0.6, 0.6, 0.6)}
-
-MAYUS_KEYS = {'↾': [0, 'Never'],
-              '⇧': [1, 'StartOnly'],
-              '⇈': [2, 'Forever']}
-
-SPECIALS_SHIFT = {'<': '>',
-                  '{': '[',
-                  '}': ']',
-                  ',': ';',
-                  '.': ':',
-                  '-': '_',
-                  '1': '!',
-                  '2': '@',
-                  '3': '#',
-                  '4': '$',
-                  '5': '%',
-                  '6': '^',
-                  '7': '&',
-                  '8': '*',
-                  '9': '(',
-                  '0': ')'}
-
 
 class Key(GObject.GObject):
 
@@ -56,51 +23,36 @@ class Key(GObject.GObject):
         'unselected': (GObject.SIGNAL_RUN_FIRST, None, []),
         }
 
-    def __init__(self, key, context):
+    def __init__(self, lower_key, mayus_key, context):
         GObject.GObject.__init__(self)
 
         self.width = 0
         self.height = 0
         self._size = (0, 0)
         self._pos = (0, 0)
-        self.key = key
-        self.real_key = key
+        self.lower_key = lower_key
+        self.mayus_key = mayus_key
         self.x = 0
         self.y = 0
         self.context = context
         self.mayus = 'StartOnly'
         self.font_size = 0
         self.selected = False
-        self.color = COLORS['key-button']
+        self.color = G.COLORS['key-button']
 
     def render(self):
-
-        if self.real_key in KEYS1:
-            _list = KEYS1
-            n = 1
-        elif self.real_key in KEYS2:
-            _list = KEYS2
-            n = 2
-        elif self.real_key in KEYS3:
-            _list = KEYS3
-            n = 3
-        elif self.real_key in KEYS4 or self.key in MAYUS_KEYS:
-            _list = KEYS4
-            n = 4
-        elif self.real_key in KEYS5:
-            _list = KEYS5
-            n = 5
-        elif self.real_key == INTRO_KEY:
+        if self.lower_key == G.INTRO_KEY:
             self.render_as_intro_key()
             return
 
+        else:
+            _list, n = G.get_in_list(self.lower_key)
+
+        idx = _list.index(self.lower_key)
+
         self.width = (self._size[0]) / float(len(_list)) * self._increment
         self.height = self._size[1] / 6.0 * self._increment
-        if self.real_key in _list:
-            self.x = self.width * _list.index(self.real_key) + self._pos[0]
-        else:
-            self.x = self._pos[0]
-
+        self.x = self.width * idx + self._pos[0]
         self.y = self.height * n + \
             self._center[1] - self._mouse_position[1] * self._increment
         self.font_size = self.height / 6 * 5.0
@@ -113,59 +65,38 @@ class Key(GObject.GObject):
         self.check_selected()
 
     def render_label(self):
-        if self.real_key == 'SPACE':
-            return
-
-        shift = False
-
-        if self.mayus == 'Forever':
-            shift = True
-
-        elif self.mayus == 'StartOnly':
-            shift = self._text.endswith('\n') or \
-                self._text.strip().endswith('.') or not self._text
-            shift = shift and self.real_key not in SPECIALS_SHIFT.keys()
-
-        elif self.mayus == 'Never':
-            shift = False
-
-        if shift:
-            if self.key not in SPECIALS_SHIFT.keys():
-                self.key = self.key.upper()
-            else:
-                self.key = SPECIALS_SHIFT[self.key]
-
-        else:
-            self.key = self.real_key
+        key = G.get_mayus_key(self.mayus, self._text, self)
 
         self.context.set_font_size(self.font_size)
-        self.context.select_font_face(*FONT)
+        self.context.select_font_face(*G.FONT)
         x = self.x + (
-            self.width / 2.0) - (self.context.text_extents(self.key)[3] / 2.0)
+            self.width / 2.0) - (self.context.text_extents(key)[3] / 2.0)
         y = self.y + (
-            self.height / 2.0) + (self.context.text_extents(self.key)[4] / 2.0)
-        if self.real_key == '-':
-            x -= self.context.text_extents(self.key)[3] * 3.0
+            self.height / 2.0) + (self.context.text_extents(key)[4] / 2.0)
+        if self.lower_key == '-':
+            x -= self.context.text_extents(key)[3] * 3.0
 
-        elif self.key == '.':
-            x -= self.context.text_extents(self.key)[3] * 1.5
-            y += (self.context.text_extents(self.key)[4] / 4.0)
+        elif self.lower_key == '.':
+            x -= self.context.text_extents(key)[3] * 1.5
+            y += (self.context.text_extents(key)[4] / 4.0)
 
-        elif self.key == ',':
-            x -= self.context.text_extents(self.key)[3] / 1.5
+        elif self.lower_key == ',':
+            x -= self.context.text_extents(key)[3] / 1.5
 
-        self.context.set_source_rgba(*COLORS['key-letter'])
+        self.context.set_source_rgba(*G.COLORS['key-letter'])
         self.context.move_to(x, y)
 
-        self.context.show_text(self.key)
+        self.context.show_text(key)
 
     def render_as_intro_key(self):
-        self.font_size = self._size[0] / len(KEYS1) * self._increment
-        self.width = self._size[0] / float(len(KEYS1) - 1) * self._increment
+        self.font_size = self._size[0] / len(G.KEYS1()) * self._increment
+        self.width = self._size[0] / float(len(G.KEYS1()) - 1) * self._increment
         self.height = self._size[1] / 5.0 * self._increment
-        self.x = self.width * KEYS1.index('←') + self._pos[0] + 20
+        self.x = self.width * G.KEYS1().index(G.DEL_KEY) + self._pos[0] + 20
         self.y = self.height * 2 + self._center[1] - \
             self._mouse_position[1] * self._increment
+
+        key = G.get_mayus_key(self.mayus, self._text, self)
 
         self.context.set_source_rgba(*self.color)
         self.context.rectangle(self.x, self.y, self.width, self.height)
@@ -173,12 +104,12 @@ class Key(GObject.GObject):
 
         self.context.set_font_size(self.font_size)
         x = self.x + (
-            self.width / 2.0) - (self.context.text_extents(self.key)[2] / 2.0)
+            self.width / 2.0) - (self.context.text_extents(key)[2] / 2.0)
         y = self.y + (
-            self.height / 2.0) + (self.context.text_extents(self.key)[3] / 2.0)
-        self.context.set_source_rgba(*COLORS['key-letter'])
+            self.height / 2.0) + (self.context.text_extents(key)[3] / 2.0)
+        self.context.set_source_rgba(*G.COLORS['key-letter'])
         self.context.move_to(x, y)
-        self.context.show_text(self.key)
+        self.context.show_text(key)
 
         self.check_selected()
 
@@ -190,19 +121,19 @@ class Key(GObject.GObject):
 
         if within and not self.selected:
             self.selected = True
-            self.color = COLORS['key-selected']
+            self.color = G.COLORS['key-selected']
             self.emit('selected')
 
         elif not within and self.selected:
             self.selected = False
-            self.color = COLORS['key-button']
+            self.color = G.COLORS['key-button']
             self.emit('unselected')
 
 
 class KeyBoard(Gtk.DrawingArea):
 
     __gsignals__ = {
-        'text-changed': (GObject.SIGNAL_RUN_FIRST, None, [str])
+        'text-changed': (GObject.SIGNAL_RUN_FIRST, None, [object, str])
         }
 
     def __init__(self):
@@ -218,8 +149,8 @@ class KeyBoard(Gtk.DrawingArea):
         self.increment = 2
         self.x = 0
         self.y = 0
-        self.text = ''
         self.selected_key = None
+        self.text = ''
 
         self.set_size_request(640, 480)
         self.set_events(Gdk.EventMask.POINTER_MOTION_MASK |
@@ -241,9 +172,15 @@ class KeyBoard(Gtk.DrawingArea):
             atn.width * self.increment, atn.height * self.increment)
         self.center = (atn.width / 2.0, atn.height / 2.0)
 
+        l1, l2 = G.KEYS1() + G.KEYS2()
+        _l1, _l2 = G.KEYS3() + G.KEYS4()
+        l = l1 + _l1 + ['SPACE']
+
         if not self.keys:
-            for x in KEYS1 + KEYS2 + KEYS3 + KEYS4 + KEYS5 + [INTRO_KEY]:
-                key = Key(x, self.context)
+            for lowed in l:
+                _list, n = G.get_in_list(lowed)
+                upped = _list[lowed]
+                key = Key(lowed, upped, self.context)
                 key.connect('selected', self.__selected_key)
                 key.connect('unselected', self.__unselected_key)
                 self.keys.append(key)
@@ -259,22 +196,18 @@ class KeyBoard(Gtk.DrawingArea):
     def __button_release_event_cb(self, widget, event):
         if event.button == 1:
             if self.selected_key:
-                text = self.selected_key.key
+                text = self.selected_key.lower_key
                 if text == 'SPACE':
                     text = ' '
-                elif text == INTRO_KEY:
+                elif text == G.INTRO_KEY:
                     text = '\n'
-                elif text == TAB_KEY:
+                elif text == G.TAB_KEY:
                     text = '\t'
-                elif text in MAYUS_KEYS.keys():
+                elif text in G.MAYUS_KEYS.keys():
                     self.next_mayus(self.selected_key)
                     return
-                elif text == DEL_KEY:
-                    if len(self.text):
-                        self.text = self.text[:-1]
 
-                self.text += text
-                self.emit('text-changed', text)
+                self.emit('text-changed', self.selected_key, text)
 
     def __scroll_event(self, widget, event):
         if event.direction == Gdk.ScrollDirection.UP:
@@ -289,7 +222,7 @@ class KeyBoard(Gtk.DrawingArea):
         GObject.idle_add(self.queue_draw)
 
     def next_mayus(self, key):
-        num, mayus = MAYUS_KEYS[key.key]
+        num, mayus = G.MAYUS_KEYS[key.lower_key]
         d = {0: 1, 1: 2, 2: 0}
         num = d[num]
 
@@ -303,8 +236,9 @@ class KeyBoard(Gtk.DrawingArea):
             self.mayus = 'Forever'
             simbol = '⇈'
 
-        key.key = simbol
-        KEYS4[0] = simbol
+        key.lower_key = simbol
+        key.mayus_key = simbol
+        G.set_mayus_key(simbol)
 
         GObject.idle_add(self.queue_draw)
 
@@ -312,18 +246,12 @@ class KeyBoard(Gtk.DrawingArea):
         self.x = self.center[0] - self.mouse_position[0] * self.increment
         self.y = self.center[1] - self.mouse_position[1] * self.increment
 
-        if self.x + self.size[0] > self.keyboard_size[0]:
-            self.x = self.keyboard_size[0] - self.size[0]
-
-        if self.y + self.size[1] > self.keyboard_size[1]:
-            self.y = self.keyboard_size[1] - self.size[1]
-
     def render(self):
         self.render_background()
         self.render_keys()
 
     def render_background(self):
-        self.context.set_source_rgba(*COLORS['background'])
+        self.context.set_source_rgba(*G.COLORS['background'])
         self.context.rectangle(0, 0, self.size[0], self.size[1])
         self.context.fill()
 
@@ -340,6 +268,10 @@ class KeyBoard(Gtk.DrawingArea):
 
             key.render()
 
+    def set_text(self, text):
+        self.text = text
+        self.render_keys()
+
     def __selected_key(self, key):
         self.selected_key = key
 
@@ -354,7 +286,10 @@ class DasherActivity(activity.Activity):
         activity.Activity.__init__(self, handle)
 
         self.clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
+        self.text = ''
+
         self.view = Gtk.TextView()
+        self.buffer = self.view.get_buffer()
         self.area = KeyBoard()
         vbox = Gtk.VBox()
         scrolled = Gtk.ScrolledWindow()
@@ -363,6 +298,8 @@ class DasherActivity(activity.Activity):
         self.view.modify_font(Pango.FontDescription('25'))
 
         self.connect('destroy', Gtk.main_quit)
+        self.buffer.connect('changed', self._buffer_changed)
+        self.buffer.connect('notify::cursor-position', self._cursor_moved)
         self.area.connect('text-changed', self.text_changed)
 
         self.make_toolbar()
@@ -373,34 +310,42 @@ class DasherActivity(activity.Activity):
         self.set_canvas(vbox)
         self.show_all()
 
-    def text_changed(self, widget, text):
-        _buffer = self.view.get_buffer()
-        if text != DEL_KEY:
-            _buffer.insert_at_cursor(text)
+    def _buffer_changed(self, _buffer):
+        start = _buffer.get_start_iter()
+        end = _buffer.get_iter_at_mark(_buffer.get_selection_bound())
+        self.text = _buffer.get_text(start, end, 0)
+        self.area.set_text(self.text)
+
+    def _cursor_moved(self, _buffer, event):
+        self._buffer_changed(_buffer)
+
+    def text_changed(self, widget, key, text):
+        if text != G.DEL_KEY:
+            text = G.get_mayus_key(self.area.mayus, self.text, key)
+            self.buffer.insert_at_cursor(text)
 
         else:
-            if _buffer.get_selection_bounds():
-                start, end = _buffer.get_bounds()
-                _end, _start = _buffer.get_selection_bounds()
+            if self.buffer.get_selection_bounds():
+                start, end = self.buffer.get_bounds()
+                _end, _start = self.buffer.get_selection_bounds()
                 offset = _end.get_offset()
 
-                text = _buffer.get_text(
-                    start, _end, 0) + _buffer.get_text(_start, end, 0)
-                _buffer.set_text(text)
-                _buffer.place_cursor(_buffer.get_iter_at_offset(offset))
+                text = self.buffer.get_text(
+                    start, _end, 0) + self.buffer.get_text(_start, end, 0)
+                self.buffer.set_text(text)
+                self.buffer.place_cursor(self.buffer.get_iter_at_offset(offset))
 
             else:
-                _end = _buffer.get_iter_at_mark(_buffer.get_selection_bound())
-                _buffer.backspace(_end, True, True)
+                _end = self.buffer.get_iter_at_mark(self.buffer.get_selection_bound())
+                self.buffer.backspace(_end, True, True)
 
     def copy_text(self, widget=None):
-        _buffer = self.view.get_buffer()
-        start, end = _buffer.get_bounds()
-        text = _buffer.get_text(start, end, 0)
+        start, end = self.buffer.get_bounds()
+        text = self.buffer.get_text(start, end, 0)
         self.clipboard.set_text(text, -1)
 
     def remove_text(self, widget=None):
-        self.view.get_buffer().set_text('')
+        self.buffer.set_text('')
 
     def cut_text(self, text):
         self.copy_text()
