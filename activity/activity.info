@@ -1,6 +1,8 @@
 [Activity]
 name = Dasher
-activity_version = 1
+activity_version = 2
 bundle_id = org.sugarlabs.Dasher
 icon = icon
 exec = sugar-activity keyboard.DasherActivity 
+license = GPLv3
+repository = https://github.com/sugarlabs/dasher-activity
