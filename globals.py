@@ -83,7 +83,7 @@ class KeysDict(object):
 
     def __add__(self, _object):
         if type(_object) == dict:
-            for key, value in _object.items():
+            for key, value in list(_object.items()):
                 return self.lowers + [key], self.uppers + [value]
 
         elif isinstance(_object, KeysDict):
@@ -146,8 +146,8 @@ class KEYS2(KeysDict):
     def __init__(self):
         KeysDict.__init__(self)
 
-        self.lowers = [u'⇄', 'q', 'w', 'e', 'r', 't', 'y', 'i', 'o', 'p']
-        self.uppers = [u'⇄', 'Q', 'W', 'E', 'R', 'T', 'Y', 'I', 'O', 'P']
+        self.lowers = ['⇄', 'q', 'w', 'e', 'r', 't', 'y', 'i', 'o', 'p']
+        self.uppers = ['⇄', 'Q', 'W', 'E', 'R', 'T', 'Y', 'I', 'O', 'P']
 
 
 class KEYS3(KeysDict):

@@ -213,7 +213,7 @@ class KeyBoard(Gtk.DrawingArea):
     def __button_release_event_cb(self, widget, event):
         if event.button == 1:
             if self.selected_key:
-                if self.selected_key.lower_key in G.MAYUS_KEYS.keys():
+                if self.selected_key.lower_key in list(G.MAYUS_KEYS.keys()):
                     self.next_mayus(self.selected_key)
                     return
 
